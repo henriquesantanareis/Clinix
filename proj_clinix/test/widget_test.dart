@@ -8,13 +8,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:proj_clinix/pagina_inicial.dart';
 import 'package:proj_clinix/main.dart';
+import 'package:proj_clinix/pagina_cadastro.dart';
 
 void main() {
+  testWidgets('registration page validates required fields', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: PaginaCadastro(supabaseConfigured: false),
+      ),
+    );
+
+    expect(find.text('Criar sua conta'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNWidgets(4));
+
+    await tester.ensureVisible(find.text('Criar conta'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Criar conta'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Informe seu nome.'), findsOneWidget);
+    expect(find.text('Informe seu e-mail.'), findsOneWidget);
+    expect(find.text('Informe sua senha.'), findsOneWidget);
+    expect(find.text('Confirme sua senha.'), findsOneWidget);
+  });
+
   testWidgets('dashboard shows the authenticated account', (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: DashboardPage(email: 'ana@clinix.com'),
+        home: PaginaInicial(email: 'ana@clinix.com'),
       ),
     );
 
