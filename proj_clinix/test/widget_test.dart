@@ -11,6 +11,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proj_clinix/main.dart';
 
 void main() {
+  testWidgets('dashboard shows the authenticated account', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: DashboardPage(email: 'ana@clinix.com'),
+      ),
+    );
+
+    expect(find.text('Olá, ana'), findsOneWidget);
+    expect(find.text('ana@clinix.com'), findsOneWidget);
+    expect(find.text('Atividade recente'), findsOneWidget);
+  });
+
   testWidgets('login page validates required fields', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
