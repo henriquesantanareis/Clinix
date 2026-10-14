@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../componentes_clinix.dart';
+// import '../componentes_clinix.dart';
 import 'agenda_clinix.dart';
+import 'componentes_clinix.dart';
 import 'pagina_agendamento.dart';
 import 'pagina_atendimento.dart';
 import 'pagina_fila_espera.dart';
