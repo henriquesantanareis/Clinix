@@ -9,7 +9,7 @@ if ! command -v flutter >/dev/null 2>&1 && [[ -x "$HOME/flutter/bin/flutter" ]];
 fi
 
 if [[ ! -f "$config_file" ]]; then
-  printf 'Missing %s. Copy config/supabase.example.json to config/supabase.json and add your Supabase URL and publishable key.\n' "$config_file" >&2
+  printf 'Falta %s. Copie o arquivo config/supabase.example.json para config/supabase.json e adicione a sua URL do Supabase e a sua chave publicável.' "$config_file" >&2
   exit 1
 fi
 
@@ -19,7 +19,7 @@ try:
 except (OSError, ValueError):
     sys.exit(1)
 sys.exit(0 if config.get("SUPABASE_URL") and config.get("SUPABASE_PUBLISHABLE_KEY") else 1)' "$config_file"; then
-  printf 'Set SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY in config/supabase.json before launching.\n' >&2
+  printf 'Defina SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY em config/supabase.json antes de lançar.\n' >&2
   exit 1
 fi
 
