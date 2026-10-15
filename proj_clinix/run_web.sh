@@ -4,6 +4,10 @@ set -euo pipefail
 project_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 config_file="$project_dir/config/supabase.json"
 
+if ! command -v flutter >/dev/null 2>&1 && [[ -x "$HOME/flutter/bin/flutter" ]]; then
+  export PATH="$HOME/flutter/bin:$PATH"
+fi
+
 if [[ ! -f "$config_file" ]]; then
   printf 'Missing %s. Copy config/supabase.example.json to config/supabase.json and add your Supabase URL and publishable key.\n' "$config_file" >&2
   exit 1
