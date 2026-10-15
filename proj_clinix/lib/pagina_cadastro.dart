@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'apis/supabase_api.dart';
 import 'componentes_clinix.dart';
 
 class PaginaCadastro extends StatefulWidget {
@@ -39,10 +40,10 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await Supabase.instance.client.auth.signUp(
+      final response = await SupabaseApi.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text,
-        data: {'full_name': _nameController.text.trim()},
+        fullName: _nameController.text.trim(),
       );
       if (!mounted) return;
 

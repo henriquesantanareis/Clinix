@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'apis/supabase_api.dart';
 import 'componentes_clinix.dart';
 import 'pagina_cadastro.dart';
 
@@ -33,7 +34,7 @@ class _EstadoPaginaLogin extends State<PaginaLogin> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      await SupabaseApi.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -72,7 +73,7 @@ class _EstadoPaginaLogin extends State<PaginaLogin> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      await SupabaseApi.resetPasswordForEmail(email);
       if (!mounted) return;
       _showMessage('Se a conta existir, você receberá um link de recuperação.');
     } on AuthException catch (error) {

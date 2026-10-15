@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'apis/supabase_api.dart';
+import 'agenda_clinix.dart';
+import 'area_atendimento.dart';
 import 'componentes_clinix.dart';
+import 'modelos_atendimento.dart';
 
 class PaginaInicial extends StatefulWidget {
-  const PaginaInicial({super.key, required this.email});
+  const PaginaInicial({
+    super.key,
+    required this.email,
+    this.perfil = PerfilClinix.operador,
+  });
 
   final String email;
+  final PerfilClinix perfil;
 
   @override
   State<PaginaInicial> createState() => _EstadoPaginaInicial();
@@ -14,16 +23,46 @@ class PaginaInicial extends StatefulWidget {
 
 class _EstadoPaginaInicial extends State<PaginaInicial> {
   bool _isSigningOut = false;
+  bool _mostrarAtendimento = false;
+  final _navegadorAtendimento = GlobalKey<NavigatorState>();
+  late AgendaClinix _agenda;
+
+  @override
+  void initState() {
+    super.initState();
+    _agenda = AgendaClinix(perfil: widget.perfil);
+  }
+
+  @override
+  void didUpdateWidget(covariant PaginaInicial oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.perfil != widget.perfil) {
+      _mostrarAtendimento = false;
+      _agenda.dispose();
+      _agenda = AgendaClinix(perfil: widget.perfil);
+    }
+  }
+
+  @override
+  void dispose() {
+    _agenda.dispose();
+    super.dispose();
+  }
+
+  void _abrirAtendimento() {
+    setState(() => _mostrarAtendimento = true);
+  }
+
+  void _fecharAtendimento() => setState(() => _mostrarAtendimento = false);
 
   Future<void> _signOut() async {
     setState(() => _isSigningOut = true);
     try {
-      await Supabase.instance.client.auth.signOut();
+      await SupabaseApi.signOut();
     } on AuthException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } finally {
       if (mounted) setState(() => _isSigningOut = false);
@@ -32,6 +71,30 @@ class _EstadoPaginaInicial extends State<PaginaInicial> {
 
   @override
   Widget build(BuildContext context) {
+    if (_mostrarAtendimento) {
+      // A navegação e os diálogos pertencem à sessão autenticada. Quando ela
+      // termina, toda esta árvore é removida junto com os dados temporários.
+      return PopScope<void>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          final navegador = _navegadorAtendimento.currentState;
+          if (navegador != null && navegador.canPop()) {
+            navegador.pop();
+          } else {
+            _fecharAtendimento();
+          }
+        },
+        child: Navigator(
+          key: _navegadorAtendimento,
+          onGenerateRoute: (_) => MaterialPageRoute<void>(
+            builder: (_) =>
+                AreaAtendimento(agenda: _agenda, aoVoltar: _fecharAtendimento),
+          ),
+        ),
+      );
+    }
+
     final displayName = widget.email.isEmpty
         ? 'Bem-vindo(a)'
         : widget.email.split('@').first.replaceAll(RegExp(r'[._-]+'), ' ');
@@ -121,6 +184,15 @@ class _EstadoPaginaInicial extends State<PaginaInicial> {
                               size: 56,
                             ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      FilledButton.icon(
+                        onPressed: _abrirAtendimento,
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        label: const Text('Agenda e atendimento'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                         ),
                       ),
                       const SizedBox(height: 32),

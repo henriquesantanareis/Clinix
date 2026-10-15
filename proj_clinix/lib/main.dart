@@ -1,23 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'apis/supabase_api.dart';
+import 'modelos_atendimento.dart';
 import 'pagina_inicial.dart';
 import 'pagina_login.dart';
 
-const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-const _supabasePublishableKey =
-    String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
-const _supabaseConfigured =
-    _supabaseUrl != '' && _supabasePublishableKey != '';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (_supabaseConfigured) {
-    await Supabase.initialize(
-      url: _supabaseUrl,
-      publishableKey: _supabasePublishableKey,
-    );
-  }
+  await SupabaseApi.initialize();
   runApp(const MyApp());
 }
 
@@ -29,6 +21,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Clinix',
+      locale: const Locale('pt', 'BR'),
+      supportedLocales: const [Locale('pt', 'BR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF4F6F1),
@@ -59,7 +54,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const _AuthGate(supabaseConfigured: _supabaseConfigured),
+      home: const _AuthGate(supabaseConfigured: SupabaseApi.isConfigured),
     );
   }
 }
@@ -75,17 +70,20 @@ class _AuthGate extends StatelessWidget {
       return const PaginaLogin(supabaseConfigured: false);
     }
 
-    final client = Supabase.instance.client;
     return StreamBuilder<AuthState>(
-      stream: client.auth.onAuthStateChange,
+      stream: SupabaseApi.authStateChanges,
       builder: (context, snapshot) {
         final session = snapshot.hasData
             ? snapshot.data!.session
-            : client.auth.currentSession;
+            : SupabaseApi.currentSession;
         if (session == null) {
           return const PaginaLogin(supabaseConfigured: true);
         }
-        return PaginaInicial(email: session.user.email ?? '');
+        return PaginaInicial(
+          key: ValueKey(session.user.id),
+          email: session.user.email ?? '',
+          perfil: PerfilClinix.deMetadados(session.user.appMetadata),
+        );
       },
     );
   }
