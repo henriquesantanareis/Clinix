@@ -47,13 +47,13 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
       );
       if (!mounted) return;
 
-      if (response.session != null) {
-        Navigator.of(context).pop();
-      } else {
-        _showMessage('Conta criada. Confira seu e-mail para confirmar o cadastro.');
+      if (response.session == null) {
+        _showMessage(
+          'Conta criada. Confira seu e-mail para confirmar o cadastro.',
+        );
       }
     } on AuthException catch (error) {
-      if (mounted) _showMessage(error.message);
+      if (mounted) _showMessage(_authErrorMessage(error));
     } catch (_) {
       if (mounted) {
         _showMessage('Não foi possível criar a conta. Tente novamente.');
@@ -67,6 +67,14 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  String _authErrorMessage(AuthException error) {
+    final message = error.message.toLowerCase();
+    if (message.contains('rate limit') && message.contains('email')) {
+      return 'O Supabase limitou o envio de e-mails. Aguarde antes de tentar novamente ou configure um SMTP próprio nas configurações de Auth.';
+    }
+    return error.message;
   }
 
   @override
