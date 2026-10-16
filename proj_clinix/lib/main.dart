@@ -3,9 +3,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'apis/supabase_api.dart';
-import 'modelos_atendimento.dart';
-import 'pagina_inicial.dart';
-import 'pagina_login.dart';
+import 'models/modelos_atendimento.dart';
+import 'pages/pagina_inicial.dart';
+import 'auth/pagina_login.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
