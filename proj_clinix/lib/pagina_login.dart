@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'apis/supabase_api.dart';
@@ -43,10 +44,12 @@ class _EstadoPaginaLogin extends State<PaginaLogin> {
     } on AuthException catch (error) {
       if (!mounted) return;
       _showMessage(error.message);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       _showMessage(
-        'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+        kDebugMode
+            ? 'Falha inesperada ao entrar: $error'
+            : 'Não foi possível entrar. Verifique sua conexão e tente novamente.',
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
