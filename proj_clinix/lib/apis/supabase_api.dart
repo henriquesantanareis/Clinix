@@ -1,20 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class SupabaseApi {
-  static const _url = String.fromEnvironment('SUPABASE_URL');
-  static const _publishableKey =
-      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+import '../config/supabase_config.dart';
 
-  static const isConfigured = _url != '' && _publishableKey != '';
+class SupabaseApi {
+  static const isConfigured = SupabaseConfig.url != '' &&
+      SupabaseConfig.publishableKey != '';
 
   static Future<void> initialize() async {
     if (!isConfigured) return;
 
     await Supabase.initialize(
-      url: _url,
-      publishableKey: _publishableKey,
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
     );
   }
+
+  // ... o resto do arquivo continua igual
 
   static Stream<AuthState> get authStateChanges =>
       Supabase.instance.client.auth.onAuthStateChange;
