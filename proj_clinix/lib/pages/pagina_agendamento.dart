@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'agenda_clinix.dart';
-import 'componentes_atendimento.dart';
-import 'modelos_atendimento.dart';
+import '../models/agenda_clinix.dart';
+import '../widgets/componentes_atendimento.dart';
+import '../models/modelos_atendimento.dart';
 
 class PaginaAgendamento extends StatefulWidget {
   const PaginaAgendamento({

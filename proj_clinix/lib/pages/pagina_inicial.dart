@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'apis/supabase_api.dart';
-import 'agenda_clinix.dart';
-import 'area_atendimento.dart';
-import 'componentes_clinix.dart';
-import 'modelos_atendimento.dart';
+import '../apis/supabase_api.dart';
+import '../models/agenda_clinix.dart';
+import '../widgets/area_atendimento.dart';
+import '../widgets/componentes_clinix.dart';
+import '../models/modelos_atendimento.dart';
 
 class PaginaInicial extends StatefulWidget {
   const PaginaInicial({

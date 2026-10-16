@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'apis/supabase_api.dart';
-import 'componentes_clinix.dart';
+import '../apis/supabase_api.dart';
+import '../widgets/componentes_clinix.dart';
 
 class PaginaCadastro extends StatefulWidget {
   const PaginaCadastro({super.key, required this.supabaseConfigured});

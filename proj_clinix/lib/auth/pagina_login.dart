@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'apis/supabase_api.dart';
-import 'componentes_clinix.dart';
+import '../apis/supabase_api.dart';
+import '../widgets/componentes_clinix.dart';
 import 'pagina_cadastro.dart';
 
 class PaginaLogin extends StatefulWidget {

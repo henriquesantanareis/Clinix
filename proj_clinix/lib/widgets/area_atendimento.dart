@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 // import '../componentes_clinix.dart';
-import 'agenda_clinix.dart';
+import '../models/agenda_clinix.dart';
 import 'componentes_clinix.dart';
-import 'pagina_agendamento.dart';
-import 'pagina_atendimento.dart';
-import 'pagina_fila_espera.dart';
-import 'pagina_pacientes_agendados.dart';
+import '../pages/pagina_agendamento.dart';
+import '../pages/pagina_atendimento.dart';
+import '../pages/pagina_fila_espera.dart';
+import '../pages/pagina_pacientes_agendados.dart';
 
 enum _AbaClinix {
   pacientes('Agenda', Icons.calendar_month_outlined),

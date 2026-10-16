@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'modelos_atendimento.dart';
+import '../models/modelos_atendimento.dart';
 
 class CabecalhoAtendimento extends StatelessWidget {
   const CabecalhoAtendimento({
