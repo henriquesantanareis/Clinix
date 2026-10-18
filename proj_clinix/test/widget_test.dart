@@ -8,9 +8,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:proj_clinix/pagina_inicial.dart';
+import 'package:proj_clinix/pages/pagina_inicial.dart';
 import 'package:proj_clinix/main.dart';
-import 'package:proj_clinix/pagina_cadastro.dart';
+import 'package:proj_clinix/auth/pagina_cadastro.dart';
 
 void main() {
   testWidgets('registration page validates required fields', (WidgetTester tester) async {
