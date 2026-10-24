@@ -51,7 +51,7 @@ create table public.agendamentos (
   profissional_id uuid not null references public.funcionarios(id),
   criado_por uuid references auth.users(id) on delete set null default auth.uid(),
   data_hora timestamptz not null,
-  observacoes text not null default '',
+  observacoes_agendamento text not null default '',
   status status_atendimento not null default 'agendado',
   chegada_em timestamptz,
   iniciado_em timestamptz,

@@ -197,6 +197,10 @@ security definer
 set search_path = ''
 as $$
 begin
+  if length(coalesce(p_anotacoes, '')) > 500 then
+    raise exception 'Observação muito longa (máximo 500 caracteres)';
+  end if;
+
   perform public.verificar_acesso_atendimento(p_agendamento_id);
 
   perform set_config('app.acao', 'encerrar_atendimento', true);
@@ -316,7 +320,47 @@ on public.agendamentos for insert to authenticated
 with check (
   (select public.perfil_atual()) in ('operador', 'gerente')
   and criado_por = (select auth.uid())
+  and status = 'agendado'
+  and chegada_em is null
+  and iniciado_em is null
+  and finalizado_em is null
+  and observacoes_administrativas = ''
 );
+
+-- 6. Proteção do vínculo de login: gerente não troca o user_id de um funcionário.
+-- O SQL Editor (perfil nenhum) continua podendo fazer o vínculo.
+create or replace function public.proteger_vinculo_funcionario()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.user_id is distinct from old.user_id
+     and (select public.perfil_atual()) = 'gerente' then
+    raise exception 'Só o administrador do projeto pode alterar o vínculo de login de um funcionário'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists proteger_vinculo on public.funcionarios;
+create trigger proteger_vinculo
+before update on public.funcionarios
+for each row execute function public.proteger_vinculo_funcionario();
+
+-- 7. Privilégios: anon não acessa nenhuma tabela ou view do public
+revoke all on all tables in schema public from anon;
+revoke all on public.fila_espera from anon;
+
+-- 8. Funções de trigger não devem ser chamadas pela API (RPC)
+-- Triggers continuam funcionando: o privilégio só é checado na criação do trigger.
+revoke all on function public.registrar_auditoria() from public, anon, authenticated;
+revoke all on function public.registrar_auditoria_pacientes() from public, anon, authenticated;
+revoke all on function public.sincronizar_status_atendimento() from public, anon, authenticated;
+revoke all on function public.garantir_gerente_unico() from public, anon, authenticated;
+revoke all on function public.proteger_vinculo_funcionario() from public, anon, authenticated;
 
 -- 5. Regra: só pode existir um gerente
 create or replace function public.garantir_gerente_unico()
