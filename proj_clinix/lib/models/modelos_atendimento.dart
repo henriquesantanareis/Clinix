@@ -1,31 +1,41 @@
 enum PerfilClinix {
   operador('Operador'),
-  gerente('Gerente'),
-  admin('Administrador');
+  administrativo('Administrativo'),
+  profissional('Profissional'),
+  gerente('Gerente');
 
   const PerfilClinix(this.rotulo);
   final String rotulo;
 
-  bool get podeVerFila => this != operador;
-  bool get podeAtender => this != operador;
+  bool get podeVerFila => true;
+  bool get podeAgendar => this == operador || this == gerente;
+  bool get podeChekin => this == operador || this == gerente;
+  bool get podeCancelar => this == operador || this == gerente;
+  bool get podeAtender => this == profissional || this == gerente;
+  bool get podeCadastrarPaciente => this == operador || this == gerente;
+  bool get podeGerenciarFuncionarios => this == gerente;
 
   /// Recebe exclusivamente app_metadata, administrado pelo servidor.
   static PerfilClinix deMetadados(Map<String, dynamic> metadados) {
     return switch (metadados['perfil']) {
+      'operador' => operador,
+      'administrativo' => administrativo,
+      'profissional' => profissional,
       'gerente' => gerente,
-      'admin' => admin,
       _ => operador,
     };
   }
 }
 
 enum StatusAtendimento {
-  agendado('Agendado'),
-  aguardando('Aguardando'),
-  emAtendimento('Em atendimento'),
-  finalizado('Finalizado');
+  agendado('agendado', 'Agendado'),
+  aguardando('aguardando', 'Aguardando'),
+  emAtendimento('em_atendimento', 'Em atendimento'),
+  finalizado('finalizado', 'Finalizado'),
+  cancelado('cancelado', 'Cancelado');
 
-  const StatusAtendimento(this.rotulo);
+  const StatusAtendimento(this.valorBanco, this.rotulo);
+  final String valorBanco; 
   final String rotulo;
 }
 
