@@ -11,7 +11,7 @@ class PaginaInicial extends StatefulWidget {
   const PaginaInicial({
     super.key,
     required this.email,
-    this.perfil = PerfilClinix.operador,
+    required this.perfil,
   });
 
   final String email;

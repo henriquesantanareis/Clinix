@@ -92,6 +92,7 @@ class IndicadorStatus extends StatelessWidget {
       StatusAtendimento.aguardando => const Color(0xFF875900),
       StatusAtendimento.emAtendimento => const Color(0xFF684593),
       StatusAtendimento.finalizado => const Color(0xFF167A68),
+      StatusAtendimento.cancelado => const Color(0xFF687771),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
