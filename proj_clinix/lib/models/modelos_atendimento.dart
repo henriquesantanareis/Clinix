@@ -9,20 +9,20 @@ enum PerfilClinix {
 
   bool get podeVerFila => true;
   bool get podeAgendar => this == operador || this == gerente;
-  bool get podeChekin => this == operador || this == gerente;
+  bool get podeCheckIn => this == operador || this == gerente;
   bool get podeCancelar => this == operador || this == gerente;
   bool get podeAtender => this == profissional || this == gerente;
   bool get podeCadastrarPaciente => this == operador || this == gerente;
   bool get podeGerenciarFuncionarios => this == gerente;
 
   /// Recebe exclusivamente app_metadata, administrado pelo servidor.
-  static PerfilClinix deMetadados(Map<String, dynamic> metadados) {
+  static PerfilClinix? deMetadados(Map<String, dynamic> metadados) {
     return switch (metadados['perfil']) {
       'operador' => operador,
       'administrativo' => administrativo,
       'profissional' => profissional,
       'gerente' => gerente,
-      _ => operador,
+      _ => null,
     };
   }
 }

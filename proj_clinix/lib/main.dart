@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:proj_clinix/auth/pagina_aguardando_liberacao.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'apis/supabase_api.dart';
@@ -79,10 +80,16 @@ class _AuthGate extends StatelessWidget {
         if (session == null) {
           return const PaginaLogin(supabaseConfigured: true);
         }
+
+        final perfil = PerfilClinix.deMetadados(session.user.appMetadata);
+        if (perfil == null) {
+          return const PaginaAguardandoLiberacao();
+        }
+
         return PaginaInicial(
           key: ValueKey(session.user.id),
           email: session.user.email ?? '',
-          perfil: PerfilClinix.deMetadados(session.user.appMetadata),
+          perfil: perfil,
         );
       },
     );

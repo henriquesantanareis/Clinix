@@ -8,9 +8,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:proj_clinix/pages/pagina_inicial.dart';
-import 'package:proj_clinix/main.dart';
 import 'package:proj_clinix/auth/pagina_cadastro.dart';
+import 'package:proj_clinix/auth/pagina_login.dart';
+import 'package:proj_clinix/models/modelos_atendimento.dart';
+import 'package:proj_clinix/pages/pagina_inicial.dart';
 
 void main() {
   testWidgets('registration page validates required fields', (WidgetTester tester) async {
@@ -37,7 +38,7 @@ void main() {
   testWidgets('dashboard shows the authenticated account', (WidgetTester tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: PaginaInicial(email: 'ana@clinix.com'),
+        home: PaginaInicial(email: 'ana@clinix.com', perfil: PerfilClinix.administrativo),
       ),
     );
 
@@ -47,7 +48,12 @@ void main() {
   });
 
   testWidgets('login page validates required fields', (WidgetTester tester) async {
-    await tester.pumpWidget(const MyApp());
+    // Monta só a tela de login, sem o _AuthGate, para não depender do Supabase
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: PaginaLogin(supabaseConfigured: false),
+      ),
+    );
 
     expect(find.text('Acesse sua conta'), findsOneWidget);
     expect(find.byType(TextFormField), findsNWidgets(2));
