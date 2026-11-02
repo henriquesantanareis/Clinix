@@ -2,39 +2,54 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/modelos_atendimento.dart';
 
-// Único arquivo que fala com o Supabase. As telas não acessam o banco direto.
 class AgendaRepository {
   AgendaRepository({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
 
-  // Colunas da consulta, com os nomes do banco. "pacientes(...)" e
-  // "funcionarios(...)" trazem os nomes junto, sem uma segunda consulta.
   static const _colunas =
       'id, data_hora, observacoes_agendamento, status, chegada_em, iniciado_em, finalizado_em, observacoes_administrativas, pacientes(nome, telefone), funcionarios(nome)';
 
-  // Agendamentos de um dia. O RLS já filtra: o profissional só recebe os dele.
-  Future<List<AgendamentoClinix>> listarAgenda(DateTime dia) async {
+  (String, String) _intervaloDo(DateTime dia) {
     final inicio = DateTime(dia.year, dia.month, dia.day);
     final fim = inicio.add(const Duration(days: 1));
+    return (inicio.toUtc().toIso8601String(), fim.toUtc().toIso8601String());
+  }
 
+  Future<List<AgendamentoClinix>> listarAgenda(DateTime dia) async {
+    final (inicio, fim) = _intervaloDo(dia);
     final linhas = await _client
         .from('agendamentos')
         .select(_colunas)
-        .gte('data_hora', inicio.toUtc().toIso8601String())
-        .lt('data_hora', fim.toUtc().toIso8601String())
+        .gte('data_hora', inicio)
+        .lt('data_hora', fim)
         .order('data_hora');
 
     return linhas.map(_paraModelo).toList();
   }
 
-  // Fila: quem está aguardando ou em atendimento, por ordem de chegada.
-  Future<List<AgendamentoClinix>> listarFila() async {
+  Future<List<AgendamentoClinix>> listarFila(DateTime dia) async {
+    final (inicio, fim) = _intervaloDo(dia);
     final linhas = await _client
         .from('agendamentos')
         .select(_colunas)
         .inFilter('status', ['aguardando', 'em_atendimento'])
+        .gte('data_hora', inicio)
+        .lt('data_hora', fim)
         .order('chegada_em', ascending: true);
+
+    return linhas.map(_paraModelo).toList();
+  }
+
+  Future<List<AgendamentoClinix>> listarFinalizados(DateTime dia) async {
+    final (inicio, fim) = _intervaloDo(dia);
+    final linhas = await _client
+        .from('agendamentos')
+        .select(_colunas)
+        .eq('status', 'finalizado')
+        .gte('finalizado_em', inicio)
+        .lt('finalizado_em', fim)
+        .order('finalizado_em', ascending: false);
 
     return linhas.map(_paraModelo).toList();
   }
@@ -45,7 +60,6 @@ class AgendaRepository {
     required DateTime dataHora,
     String observacoes = '',
   }) async {
-    // criado_por é preenchido pelo banco com auth.uid()
     await _client.from('agendamentos').insert({
       'paciente_id': pacienteId,
       'profissional_id': profissionalId,
@@ -68,7 +82,6 @@ class AgendaRepository {
     final cpfLimpo = cpf.replaceAll(RegExp(r'\D'), '');
     await _client.from('pacientes').insert({
       'nome': nome.trim(),
-      // CPF vazio vai como null: a restrição do banco aceita null, não texto vazio
       'cpf': cpfLimpo.isEmpty ? null : cpfLimpo,
       'telefone': telefone.trim(),
       'cep': cep.replaceAll(RegExp(r'\D'), ''),
@@ -80,7 +93,6 @@ class AgendaRepository {
     });
   }
 
-  // As ações passam pelas funções do banco, e não por update direto.
   Future<void> registrarChegada(String id) async {
     await _client.rpc('registrar_chegada', params: {'p_agendamento_id': id});
   }
@@ -100,7 +112,6 @@ class AgendaRepository {
     await _client.rpc('cancelar_agendamento', params: {'p_agendamento_id': id});
   }
 
-  // Converte a linha do banco no modelo que as telas já usam.
   AgendamentoClinix _paraModelo(Map<String, dynamic> linha) {
     final paciente = linha['pacientes'] as Map<String, dynamic>;
     final funcionario = linha['funcionarios'] as Map<String, dynamic>;
