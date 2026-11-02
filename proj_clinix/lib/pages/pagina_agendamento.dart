@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/agenda_repository.dart';
 import '../models/agenda_clinix.dart';
 import '../widgets/componentes_atendimento.dart';
 import '../models/modelos_atendimento.dart';
@@ -20,19 +22,47 @@ class PaginaAgendamento extends StatefulWidget {
 
 class _EstadoAgendamento extends State<PaginaAgendamento> {
   final _formKey = GlobalKey<FormState>();
-  final _nome = TextEditingController();
-  final _telefone = TextEditingController();
-  final _profissional = TextEditingController();
   final _observacoes = TextEditingController();
+  final AgendaRepository _repositorio = AgendaRepository();
+
+
   late DateTime _dataHora = widget.agenda.agora.add(const Duration(hours: 1));
+  List<({String id, String nome})> _profissionais = [];
+  List<({String id, String nome})> _pacientes = [];
+  String? _pacienteId;
+  String? _profissionalId;
+  bool _carregando = true;
+  bool _salvando = false;
+  String? _erro;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarOpcoes();
+  }
 
   @override
   void dispose() {
-    _nome.dispose();
-    _telefone.dispose();
-    _profissional.dispose();
     _observacoes.dispose();
     super.dispose();
+  }
+
+  // Carrega as listas de pacientes e profissionais do banco.
+  Future<void> _carregarOpcoes() async {
+    try {
+      final pacientes = await _repositorio.listarPacientes();
+      final profissionais = await _repositorio.listarProfissionais();
+      if (!mounted) return;
+      setState(() {
+        _pacientes = pacientes;
+        _profissionais = profissionais;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _erro = 'Não foi possível carregar pacientes e profissionais.');
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
   }
 
   Future<void> _selecionarData() async {
@@ -87,38 +117,55 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
     }
   }
 
-  void _salvar() {
+  Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
+    
+    // O horário exibido tem precisão de minutos; não salvamos segundos ocultos.
+    final dataHora = DateTime(
+      _dataHora.year,
+      _dataHora.month,
+      _dataHora.day,
+      _dataHora.hour,
+      _dataHora.minute,
+    );
+    if (!dataHora.isAfter(widget.agenda.agora)) {
+      setState(() => _erro = 'Escolha um horário no futuro.');
+      return;
+    }
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
     try {
-      // O horário exibido tem precisão de minutos; não salvamos segundos ocultos.
-      final dataHora = DateTime(
-        _dataHora.year,
-        _dataHora.month,
-        _dataHora.day,
-        _dataHora.hour,
-        _dataHora.minute,
-      );
-      widget.agenda.agendar(
-        paciente: PacienteClinix(nome: _nome.text, telefone: _telefone.text),
-        profissional: _profissional.text,
+      await _repositorio.criarAgendamento(
+        pacienteId: _pacienteId!,
+        profissionalId: _profissionalId!,
         dataHora: dataHora,
         observacoes: _observacoes.text,
       );
-      FocusScope.of(context).unfocus();
-      _formKey.currentState!.reset();
-      _nome.clear();
-      _telefone.clear();
-      _profissional.clear();
-      _observacoes.clear();
-      setState(
-        () => _dataHora = widget.agenda.agora.add(const Duration(hours: 1)),
-      );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agendamento realizado nesta sessão.')),
+        const SnackBar(content: Text('Agendamento realizado.')),
       );
+      setState(() {
+        _pacienteId = null;
+        _profissionalId = null;
+        _observacoes.clear();
+        _dataHora = widget.agenda.agora.add(const Duration(hours: 1));
+      });
       widget.aoAgendar(dataHora);
-    } catch (erro) {
-      mostrarErroAtendimento(context, erro);
+    } on PostgrestException catch (erro) {
+      if (!mounted) return;
+      setState(() {
+        _erro = erro.code == '23505'
+            ? 'Este profissional já tem um agendamento nesse horário.'
+            : 'Não foi possível salvar o agendamento. ${erro.message}';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _erro = 'Não foi possível salvar o agendamento. Tente de novo.');
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 
@@ -136,48 +183,41 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
             children: [
               const CabecalhoAtendimento(
                 titulo: 'Novo agendamento',
-                descricao:
-                    'Informe o paciente, o profissional e o horário desejado.',
+                descricao: 'Informe o paciente, o profissional e o horário desejado.',
               ),
-              TextFormField(
-                key: const Key('nome-paciente'),
-                controller: _nome,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                maxLength: 100,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do paciente',
-                  counterText: '',
+              if (_carregando) const LinearProgressIndicator(),
+              DropdownButtonFormField<String>(
+                key: const Key('paciente'),
+                initialValue: _pacienteId,
+                decoration: InputDecoration(
+                  labelText: 'Paciente',
+                  helperText: !_carregando && _pacientes.isEmpty
+                      ? 'Nenhum paciente cadastrado.'
+                      : null,
                 ),
-                validator: (value) => (value?.trim().isEmpty ?? true)
-                    ? 'Informe o nome do paciente.'
-                    : null,
+                items: [
+                  for (final p in _pacientes)
+                    DropdownMenuItem(value: p.id, child: Text(p.nome)),
+                ],
+                onChanged: (v) => setState(() => _pacienteId = v),
+                validator: (v) => v == null ? 'Escolha o paciente.' : null,
               ),
               const SizedBox(height: 20),
-              TextFormField(
-                controller: _telefone,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.next,
-                maxLength: 32,
-                decoration: const InputDecoration(
-                  labelText: 'Telefone (opcional)',
-                  counterText: '',
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
+              DropdownButtonFormField<String>(
                 key: const Key('profissional'),
-                controller: _profissional,
-                textCapitalization: TextCapitalization.words,
-                textInputAction: TextInputAction.next,
-                maxLength: 100,
-                decoration: const InputDecoration(
+                initialValue: _profissionalId,
+                decoration: InputDecoration(
                   labelText: 'Profissional',
-                  counterText: '',
+                  helperText: !_carregando && _profissionais.isEmpty
+                      ? 'Nenhum profissional disponível para atendimento.'
+                      : null,
                 ),
-                validator: (value) => (value?.trim().isEmpty ?? true)
-                    ? 'Informe o profissional.'
-                    : null,
+                items: [
+                  for (final p in _profissionais)
+                    DropdownMenuItem(value: p.id, child: Text(p.nome)),
+                ],
+                onChanged: (v) => setState(() => _profissionalId = v),
+                validator: (v) => v == null ? 'Escolha o profissional.' : null,
               ),
               const SizedBox(height: 20),
               Wrap(
@@ -209,14 +249,18 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
                 ),
               ),
               const SizedBox(height: 24),
+              if (_erro != null) ...[
+                Text(_erro!, style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+              ],
               FilledButton.icon(
                 key: const Key('salvar-agendamento'),
-                onPressed: _salvar,
+                onPressed: _salvando || _carregando ? null : _salvar,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
                 icon: const Icon(Icons.event_available_outlined),
-                label: const Text('Realizar agendamento'),
+                label: Text(_salvando ? 'Salvando...' : 'Realizar agendamento'),
               ),
               const SizedBox(height: 16),
             ],

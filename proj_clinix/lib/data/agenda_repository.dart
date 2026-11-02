@@ -68,29 +68,22 @@ class AgendaRepository {
     });
   }
 
-  Future<void> cadastrarPaciente({
+  Future<String> cadastrarPaciente({
     required String nome,
-    required String cpf,
+    String cpf = '',
     String telefone = '',
-    String cep = '',
-    String logradouro = '',
-    String numero = '',
-    String bairro = '',
-    String cidade = '',
-    String uf = '',
   }) async {
     final cpfLimpo = cpf.replaceAll(RegExp(r'\D'), '');
-    await _client.from('pacientes').insert({
-      'nome': nome.trim(),
-      'cpf': cpfLimpo.isEmpty ? null : cpfLimpo,
-      'telefone': telefone.trim(),
-      'cep': cep.replaceAll(RegExp(r'\D'), ''),
-      'logradouro': logradouro,
-      'numero': numero,
-      'bairro': bairro,
-      'cidade': cidade,
-      'uf': uf,
-    });
+    final linha = await _client
+        .from('pacientes')
+        .insert({
+          'nome': nome.trim(),
+          'cpf': cpfLimpo.isEmpty ? null : cpfLimpo,
+          'telefone': telefone.trim(),
+        })
+        .select('id')
+        .single();
+    return linha['id'] as String;
   }
 
   Future<void> registrarChegada(String id) async {
@@ -110,6 +103,27 @@ class AgendaRepository {
 
   Future<void> cancelarAgendamento(String id) async {
     await _client.rpc('cancelar_agendamento', params: {'p_agendamento_id': id});
+  }
+  
+  // Profissionais que atendem, para o campo de profissional do agendamento.
+  Future<List<({String id, String nome})>> listarProfissionais() async {
+    final linhas = await _client
+        .from('funcionarios')
+        .select('id, nome')
+        .eq('atende', true)
+        .eq('ativo', true)
+        .order('nome');
+    return linhas
+        .map((l) => (id: l['id'] as String, nome: l['nome'] as String))
+        .toList();
+  }
+
+  // Pacientes cadastrados, para escolher no agendamento.
+  Future<List<({String id, String nome})>> listarPacientes() async {
+    final linhas = await _client.from('pacientes').select('id, nome').order('nome');
+    return linhas
+        .map((l) => (id: l['id'] as String, nome: l['nome'] as String))
+        .toList();
   }
 
   AgendamentoClinix _paraModelo(Map<String, dynamic> linha) {
