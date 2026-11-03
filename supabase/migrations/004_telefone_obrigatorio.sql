@@ -5,5 +5,8 @@
 -- =====================================================================
 
 alter table public.pacientes
+  drop constraint if exists pacientes_telefone_formato;
+
+alter table public.pacientes
   add constraint pacientes_telefone_formato
   check (telefone ~ '^[0-9]{10,11}$');
