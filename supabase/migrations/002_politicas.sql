@@ -359,7 +359,6 @@ revoke all on public.fila_espera from anon;
 revoke all on function public.registrar_auditoria() from public, anon, authenticated;
 revoke all on function public.registrar_auditoria_pacientes() from public, anon, authenticated;
 revoke all on function public.sincronizar_status_atendimento() from public, anon, authenticated;
-revoke all on function public.garantir_gerente_unico() from public, anon, authenticated;
 revoke all on function public.proteger_vinculo_funcionario() from public, anon, authenticated;
 
 -- 5. Regra: só pode existir um gerente
@@ -385,5 +384,6 @@ $$;
 
 drop trigger if exists gerente_unico on auth.users;
 create trigger gerente_unico
+revoke all on function public.garantir_gerente_unico() from public, anon, authenticated;
 before insert or update of raw_app_meta_data on auth.users
 for each row execute function public.garantir_gerente_unico();
