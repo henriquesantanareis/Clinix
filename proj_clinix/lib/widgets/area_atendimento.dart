@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
-// import '../componentes_clinix.dart';
 import '../models/agenda_clinix.dart';
 import 'componentes_clinix.dart';
 import '../pages/pagina_agendamento.dart';
 import '../pages/pagina_atendimento.dart';
+import '../pages/pagina_cadastro_paciente.dart';
 import '../pages/pagina_fila_espera.dart';
 import '../pages/pagina_pacientes_agendados.dart';
 
 enum _AbaClinix {
-  pacientes('Agenda', Icons.calendar_month_outlined),
+  agenda('Agenda', Icons.calendar_month_outlined),
+  cadastro('Cadastrar', Icons.person_add_alt_1_outlined),
   fila('Fila', Icons.people_outline),
   agendamento('Agendar', Icons.add_circle_outline),
   atendimento('Atender', Icons.medical_services_outlined);
@@ -30,26 +31,35 @@ class AreaAtendimento extends StatefulWidget {
 }
 
 class _EstadoAreaAtendimento extends State<AreaAtendimento> {
-  _AbaClinix _aba = _AbaClinix.pacientes;
+  _AbaClinix _aba = _AbaClinix.agenda;
   DateTime? _diaAgenda;
   int _versaoAgenda = 0;
+  int _versaoPacientes = 0;
 
   void _abrirAgendamento() => setState(() => _aba = _AbaClinix.agendamento);
 
+  // Volta para a Agenda, incrementando a versão de pacientes para forçar a atualização da lista.
+  void _voltarDoCadastro() => setState(() {
+    _versaoPacientes++;
+    _aba = _AbaClinix.agenda;
+  });
+
   Widget _pagina(_AbaClinix aba) => switch (aba) {
-    _AbaClinix.pacientes => PaginaPacientesAgendados(
-      key: ValueKey('pacientes-$_versaoAgenda'),
+    _AbaClinix.agenda => PaginaPacientesAgendados(
+      key: ValueKey('agenda-$_versaoAgenda'),
       agenda: widget.agenda,
       diaInicial: _diaAgenda,
       aoNovoAgendamento: _abrirAgendamento,
     ),
+    _AbaClinix.cadastro => PaginaCadastroPaciente(aoSalvar: _voltarDoCadastro),
     _AbaClinix.fila => PaginaFilaEspera(agenda: widget.agenda),
     _AbaClinix.agendamento => PaginaAgendamento(
+      key: ValueKey('agendamento-$_versaoPacientes'),
       agenda: widget.agenda,
       aoAgendar: (dataHora) => setState(() {
         _diaAgenda = dataHora;
         _versaoAgenda++;
-        _aba = _AbaClinix.pacientes;
+        _aba = _AbaClinix.agenda;
       }),
     ),
     _AbaClinix.atendimento => PaginaAtendimento(agenda: widget.agenda),
@@ -58,12 +68,16 @@ class _EstadoAreaAtendimento extends State<AreaAtendimento> {
   @override
   Widget build(BuildContext context) {
     final abas = [
-      _AbaClinix.pacientes,
+      _AbaClinix.agenda,
+      if (widget.agenda.perfil.podeCadastrarPaciente) _AbaClinix.cadastro,
       if (widget.agenda.perfil.podeVerFila) _AbaClinix.fila,
-      _AbaClinix.agendamento,
+      if (widget.agenda.perfil.podeAgendar) _AbaClinix.agendamento,
       if (widget.agenda.perfil.podeAtender) _AbaClinix.atendimento,
     ];
-    final indice = abas.indexOf(_aba);
+    // Se a aba atual não estiver disponível para o perfil, mostra a primeira.
+    final atual = abas.contains(_aba) ? _aba : abas.first;
+    final indice = abas.indexOf(atual);
+
     return Scaffold(
       appBar: AppBar(
         leading: widget.aoVoltar == null
@@ -80,19 +94,6 @@ class _EstadoAreaAtendimento extends State<AreaAtendimento> {
       body: SafeArea(
         child: Column(
           children: [
-            if (MediaQuery.viewInsetsOf(context).bottom == 0)
-              Container(
-                width: double.infinity,
-                color: const Color(0xFFFFF1DA),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                child: const Text(
-                  'Dados temporários: ficam nesta sessão e não são salvos no banco.',
-                  style: TextStyle(color: Color(0xFF684B17), fontSize: 12),
-                ),
-              ),
             Expanded(
               child: AnimatedBuilder(
                 animation: widget.agenda,

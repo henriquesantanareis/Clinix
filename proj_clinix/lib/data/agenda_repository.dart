@@ -3,7 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/modelos_atendimento.dart';
 
 class AgendaRepository {
-  AgendaRepository({SupabaseClient? client}) : _client = client ?? Supabase.instance.client;
+  AgendaRepository({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
 
@@ -68,18 +69,40 @@ class AgendaRepository {
     });
   }
 
+  // Cadastra o paciente e devolve o id criado.
+  // Campos vazios vão como null, para as restrições do banco funcionarem.
   Future<String> cadastrarPaciente({
     required String nome,
-    String cpf = '',
-    String telefone = '',
+    required String cpf,
+    required String telefone,
+    String cep = '',
+    String logradouro = '',
+    String numero = '',
+    String complemento = '',
+    String bairro = '',
+    String cidade = '',
+    String uf = '',
   }) async {
-    final cpfLimpo = cpf.replaceAll(RegExp(r'\D'), '');
+    String apenasDigitos(String valor) => valor.replaceAll(RegExp(r'\D'), '');
+    String? vazioParaNull(String valor) {
+      final t = valor.trim();
+      return t.isEmpty ? null : t;
+    }
+
+    final cepLimpo = apenasDigitos(cep);
     final linha = await _client
         .from('pacientes')
         .insert({
           'nome': nome.trim(),
-          'cpf': cpfLimpo.isEmpty ? null : cpfLimpo,
-          'telefone': telefone.trim(),
+          'cpf': apenasDigitos(cpf),
+          'telefone': apenasDigitos(telefone),
+          'cep': cepLimpo.isEmpty ? null : cepLimpo,
+          'logradouro': vazioParaNull(logradouro),
+          'numero': vazioParaNull(numero),
+          'complemento': vazioParaNull(complemento),
+          'bairro': vazioParaNull(bairro),
+          'cidade': vazioParaNull(cidade),
+          'uf': vazioParaNull(uf)?.toUpperCase(),
         })
         .select('id')
         .single();
@@ -95,16 +118,16 @@ class AgendaRepository {
   }
 
   Future<void> encerrarAtendimento(String id, String anotacoes) async {
-    await _client.rpc('encerrar_atendimento', params: {
-      'p_agendamento_id': id,
-      'p_anotacoes': anotacoes.trim(),
-    });
+    await _client.rpc(
+      'encerrar_atendimento',
+      params: {'p_agendamento_id': id, 'p_anotacoes': anotacoes.trim()},
+    );
   }
 
   Future<void> cancelarAgendamento(String id) async {
     await _client.rpc('cancelar_agendamento', params: {'p_agendamento_id': id});
   }
-  
+
   // Profissionais que atendem, para o campo de profissional do agendamento.
   Future<List<({String id, String nome})>> listarProfissionais() async {
     final linhas = await _client
@@ -120,7 +143,10 @@ class AgendaRepository {
 
   // Pacientes cadastrados, para escolher no agendamento.
   Future<List<({String id, String nome})>> listarPacientes() async {
-    final linhas = await _client.from('pacientes').select('id, nome').order('nome');
+    final linhas = await _client
+        .from('pacientes')
+        .select('id, nome')
+        .order('nome');
     return linhas
         .map((l) => (id: l['id'] as String, nome: l['nome'] as String))
         .toList();
@@ -149,5 +175,6 @@ class AgendaRepository {
     );
   }
 
-  DateTime? _data(Object? valor) => valor == null ? null : DateTime.parse(valor as String).toLocal();
+  DateTime? _data(Object? valor) =>
+      valor == null ? null : DateTime.parse(valor as String).toLocal();
 }
