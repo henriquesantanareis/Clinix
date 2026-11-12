@@ -26,6 +26,7 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
   late DateTime _dia = widget.diaInicial ?? widget.agenda.agora;
   List<AgendamentoClinix> _itens = [];
   bool _carregando = false;
+  String? _cancelandoId;
   String? _erro;
 
   @override
@@ -35,18 +36,24 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
   }
 
   Future<void> _carregar() async {
-    setState((){
+    setState(() {
       _carregando = true;
       _erro = null;
     });
-    try{
+    try {
       final todos = await _repositorio.listarAgenda(_dia);
-      final pendentes =  todos.where((item) => item.status == StatusAtendimento.agendado).toList()..sort((a, b) => a.dataHora.compareTo(b.dataHora));
+      final pendentes =
+          todos
+              .where((item) => item.status == StatusAtendimento.agendado)
+              .toList()
+            ..sort((a, b) => a.dataHora.compareTo(b.dataHora));
       if (!mounted) return;
       setState(() => _itens = pendentes);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _erro = 'Não foi possível carregar a agenda. Tente de novo.');
+      setState(
+        () => _erro = 'Não foi possível carregar a agenda. Tente de novo.',
+      );
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
@@ -76,13 +83,34 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
       await _repositorio.registrarChegada(item.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chegada confirmada. Paciente na fila.'),),
+        const SnackBar(content: Text('Chegada confirmada. Paciente na fila.')),
       );
       await _carregar();
     } catch (erro) {
       if (!mounted) return;
       mostrarErroAtendimento(context, erro);
+    }
+  }
+
+  Future<void> _cancelarAgendamento(AgendamentoClinix item) async {
+    if (!widget.agenda.perfil.podeCancelar ||
+        !await confirmarCancelamentoAgendamento(context, item)) {
+      return;
+    }
+
+    setState(() => _cancelandoId = item.id);
+    try {
+      await _repositorio.cancelarAgendamento(item.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Agendamento cancelado.')));
+      await _carregar();
+    } catch (erro) {
+      if (!mounted) return;
+      mostrarErroAtendimento(context, erro);
+    } finally {
+      if (mounted) setState(() => _cancelandoId = null);
     }
   }
 
@@ -112,7 +140,8 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
             children: [
               IconButton.outlined(
                 tooltip: 'Dia anterior',
-                onPressed: () => _mudarDia(DateTime(_dia.year, _dia.month, _dia.day - 1)),
+                onPressed: () =>
+                    _mudarDia(DateTime(_dia.year, _dia.month, _dia.day - 1)),
                 icon: const Icon(Icons.chevron_left),
               ),
               OutlinedButton.icon(
@@ -122,7 +151,8 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
               ),
               IconButton.outlined(
                 tooltip: 'Próximo dia',
-                onPressed: () => _mudarDia(DateTime(_dia.year, _dia.month, _dia.day + 1)),
+                onPressed: () =>
+                    _mudarDia(DateTime(_dia.year, _dia.month, _dia.day + 1)),
                 icon: const Icon(Icons.chevron_right),
               ),
               TextButton(
@@ -140,14 +170,54 @@ class _EstadoPacientesAgendados extends State<PaginaPacientesAgendados> {
           for (final item in _itens)
             CartaoAgendamento(
               agendamento: item,
-              acao: FilledButton.icon(
-                key: ValueKey('chegada-${item.id}'),
-                icon: const Icon(Icons.how_to_reg_outlined, size: 18),
-                label: const Text('Confirmar chegada'),
-                onPressed: mesmoDia(item.dataHora, hoje)
-                    ? () => _confirmarChegada(item)
-                    : null,
-              ),
+              acao:
+                  widget.agenda.perfil.podeCheckIn ||
+                      widget.agenda.perfil.podeCancelar
+                  ? Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        if (widget.agenda.perfil.podeCheckIn)
+                          FilledButton.icon(
+                            key: ValueKey('chegada-${item.id}'),
+                            icon: const Icon(
+                              Icons.how_to_reg_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Confirmar chegada'),
+                            onPressed: mesmoDia(item.dataHora, hoje)
+                                ? () => _confirmarChegada(item)
+                                : null,
+                          ),
+                        if (widget.agenda.perfil.podeCancelar)
+                          TextButton.icon(
+                            key: ValueKey('cancelar-${item.id}'),
+                            icon: _cancelandoId == item.id
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.event_busy_outlined,
+                                    size: 18,
+                                  ),
+                            label: Text(
+                              _cancelandoId == item.id
+                                  ? 'Cancelando...'
+                                  : 'Cancelar',
+                            ),
+                            onPressed: _cancelandoId == item.id
+                                ? null
+                                : () => _cancelarAgendamento(item),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                          ),
+                      ],
+                    )
+                  : null,
             ),
           if (_itens.isNotEmpty && !mesmoDia(_dia, hoje)) ...[
             const SizedBox(height: 8),

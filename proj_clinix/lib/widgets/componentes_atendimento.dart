@@ -265,6 +265,33 @@ Future<void> mostrarFichaPaciente(
   ),
 );
 
+Future<bool> confirmarCancelamentoAgendamento(
+  BuildContext context,
+  AgendamentoClinix item,
+) async =>
+    await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancelar agendamento?'),
+        content: Text(
+          'Deseja cancelar o agendamento de ${item.paciente.nome} em '
+          '${formatarData(item.dataHora)} às ${formatarHora(item.dataHora)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Manter agendamento'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Confirmar cancelamento'),
+          ),
+        ],
+      ),
+    ) ??
+    false;
+
 void mostrarErroAtendimento(BuildContext context, Object erro) {
   final mensagem = switch (erro) {
     StateError erro => erro.message,

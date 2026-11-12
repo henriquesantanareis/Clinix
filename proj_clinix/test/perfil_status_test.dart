@@ -10,10 +10,11 @@ void main() {
       expect(PerfilClinix.operador.podeAtender, isFalse);
     });
 
-    test('profissional atende, mas não agenda nem faz check-in', () {
+    test('profissional atende e agenda, mas não faz check-in nem cancela', () {
       expect(PerfilClinix.profissional.podeAtender, isTrue);
-      expect(PerfilClinix.profissional.podeAgendar, isFalse);
+      expect(PerfilClinix.profissional.podeAgendar, isTrue);
       expect(PerfilClinix.profissional.podeCheckIn, isFalse);
+      expect(PerfilClinix.profissional.podeCancelar, isFalse);
     });
 
     test('administrativo só vê a fila, sem agir', () {
@@ -32,7 +33,10 @@ void main() {
 
     test('só o gerente gerencia funcionários', () {
       for (final perfil in PerfilClinix.values) {
-        expect(perfil.podeGerenciarFuncionarios, perfil == PerfilClinix.gerente);
+        expect(
+          perfil.podeGerenciarFuncionarios,
+          perfil == PerfilClinix.gerente,
+        );
       }
     });
 
@@ -51,10 +55,13 @@ void main() {
 
   group('StatusAtendimento', () {
     test('valores batem com o enum do banco', () {
-      expect(
-        StatusAtendimento.values.map((s) => s.valorBanco).toList(),
-        ['agendado', 'aguardando', 'em_atendimento', 'finalizado', 'cancelado'],
-      );
+      expect(StatusAtendimento.values.map((s) => s.valorBanco).toList(), [
+        'agendado',
+        'aguardando',
+        'em_atendimento',
+        'finalizado',
+        'cancelado',
+      ]);
     });
   });
 }

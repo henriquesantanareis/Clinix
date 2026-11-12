@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Clinix: Run Web App",
+			"type": "shell",
+			"command": "bash",
+			"args": [
+				"-lc",
+				"cd proj_clinix && exec /home/codespace/flutter/bin/flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

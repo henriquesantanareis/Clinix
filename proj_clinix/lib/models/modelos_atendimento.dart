@@ -8,7 +8,8 @@ enum PerfilClinix {
   final String rotulo;
 
   bool get podeVerFila => true;
-  bool get podeAgendar => this == operador || this == gerente;
+  bool get podeAgendar =>
+      this == operador || this == profissional || this == gerente;
   bool get podeCheckIn => this == operador || this == gerente;
   bool get podeCancelar => this == operador || this == gerente;
   bool get podeAtender => this == profissional || this == gerente;
@@ -35,15 +36,58 @@ enum StatusAtendimento {
   cancelado('cancelado', 'Cancelado');
 
   const StatusAtendimento(this.valorBanco, this.rotulo);
-  final String valorBanco; 
+  final String valorBanco;
   final String rotulo;
 }
 
 class PacienteClinix {
-  const PacienteClinix({required this.nome, this.telefone = ''});
+  const PacienteClinix({
+    required this.nome,
+    this.id = '',
+    this.cpf = '',
+    this.telefone = '',
+    this.proximaConsulta,
+    this.profissionalProximaConsulta,
+  });
 
+  final String id;
   final String nome;
+  final String cpf;
   final String telefone;
+  final DateTime? proximaConsulta;
+  final String? profissionalProximaConsulta;
+}
+
+class SolicitacaoAcessoClinix {
+  const SolicitacaoAcessoClinix({
+    required this.usuarioId,
+    required this.nome,
+    required this.email,
+    required this.criadaEm,
+  });
+
+  final String usuarioId;
+  final String nome;
+  final String email;
+  final DateTime criadaEm;
+}
+
+class FuncionarioClinix {
+  const FuncionarioClinix({
+    required this.id,
+    required this.nome,
+    required this.email,
+    required this.cargo,
+    required this.atende,
+    required this.ativo,
+  });
+
+  final String id;
+  final String nome;
+  final String email;
+  final String cargo;
+  final bool atende;
+  final bool ativo;
 }
 
 class AgendamentoClinix {

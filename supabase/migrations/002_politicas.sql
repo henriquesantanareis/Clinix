@@ -384,6 +384,7 @@ $$;
 
 drop trigger if exists gerente_unico on auth.users;
 create trigger gerente_unico
-revoke all on function public.garantir_gerente_unico() from public, anon, authenticated;
 before insert or update of raw_app_meta_data on auth.users
 for each row execute function public.garantir_gerente_unico();
+
+revoke all on function public.garantir_gerente_unico() from public, anon, authenticated;

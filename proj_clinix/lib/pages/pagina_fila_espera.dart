@@ -20,6 +20,7 @@ class _EstadoFilaEspera extends State<PaginaFilaEspera> {
   StatusAtendimento _filtro = StatusAtendimento.aguardando;
   List<AgendamentoClinix> _todos = [];
   bool _carregando = false;
+  String? _cancelandoId;
   String? _erro;
 
   @override
@@ -41,9 +42,33 @@ class _EstadoFilaEspera extends State<PaginaFilaEspera> {
       setState(() => _todos = [...fila, ...finalizados]);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _erro = 'Não foi possível carregar a fila. Tente de novo.');
+      setState(
+        () => _erro = 'Não foi possível carregar a fila. Tente de novo.',
+      );
     } finally {
       if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _cancelarAgendamento(AgendamentoClinix item) async {
+    if (!widget.agenda.perfil.podeCancelar ||
+        !await confirmarCancelamentoAgendamento(context, item)) {
+      return;
+    }
+
+    setState(() => _cancelandoId = item.id);
+    try {
+      await _repositorio.cancelarAgendamento(item.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Agendamento cancelado.')));
+      await _carregar();
+    } catch (erro) {
+      if (!mounted) return;
+      mostrarErroAtendimento(context, erro);
+    } finally {
+      if (mounted) setState(() => _cancelandoId = null);
     }
   }
 
@@ -63,8 +88,9 @@ class _EstadoFilaEspera extends State<PaginaFilaEspera> {
     final itens = _todos.where((item) => item.status == _filtro).toList()
       ..sort((a, b) {
         if (_filtro == StatusAtendimento.finalizado) {
-          return (b.finalizadoEm ?? DateTime(0))
-              .compareTo(a.finalizadoEm ?? DateTime(0));
+          return (b.finalizadoEm ?? DateTime(0)).compareTo(
+            a.finalizadoEm ?? DateTime(0),
+          );
         }
         return (a.chegadaEm ?? a.dataHora).compareTo(b.chegadaEm ?? b.dataHora);
       });
@@ -110,7 +136,30 @@ class _EstadoFilaEspera extends State<PaginaFilaEspera> {
               icone: Icons.people_outline,
             ),
           for (final item in itens)
-            CartaoAgendamento(agendamento: item, mostrarAnotacoes: true),
+            CartaoAgendamento(
+              agendamento: item,
+              mostrarAnotacoes: true,
+              acao:
+                  item.status == StatusAtendimento.aguardando &&
+                      widget.agenda.perfil.podeCancelar
+                  ? TextButton.icon(
+                      key: ValueKey('cancelar-${item.id}'),
+                      icon: _cancelandoId == item.id
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.event_busy_outlined, size: 18),
+                      label: Text(
+                        _cancelandoId == item.id ? 'Cancelando...' : 'Cancelar',
+                      ),
+                      onPressed: _cancelandoId == item.id
+                          ? null
+                          : () => _cancelarAgendamento(item),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    )
+                  : null,
+            ),
         ],
       ),
     );

@@ -49,7 +49,7 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
 
       if (response.session == null) {
         _showMessage(
-          'Conta criada. Confira seu e-mail para confirmar o cadastro.',
+          'Conta criada. Confirme seu e-mail; depois o gerente analisará seu pedido de acesso.',
         );
       }
     } on AuthException catch (error) {
@@ -64,9 +64,8 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _authErrorMessage(AuthException error) {
@@ -107,10 +106,7 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
                     const SizedBox(height: 8),
                     const Text(
                       'Preencha seus dados para começar.',
-                      style: TextStyle(
-                        color: Color(0xFF687771),
-                        fontSize: 15,
-                      ),
+                      style: TextStyle(color: Color(0xFF687771), fontSize: 15),
                     ),
                     const SizedBox(height: 28),
                     const RotuloCampo('Nome completo'),
@@ -236,7 +232,9 @@ class _EstadoPaginaCadastro extends State<PaginaCadastro> {
                     ),
                     const SizedBox(height: 12),
                     TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: const Text('Já tenho uma conta'),
                     ),
                   ],

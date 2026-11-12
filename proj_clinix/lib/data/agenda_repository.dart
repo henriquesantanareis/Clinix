@@ -141,15 +141,128 @@ class AgendaRepository {
         .toList();
   }
 
-  // Pacientes cadastrados, para escolher no agendamento.
-  Future<List<({String id, String nome})>> listarPacientes() async {
-    final linhas = await _client
-        .from('pacientes')
+  Future<({String id, String nome})?> profissionalAtual() async {
+    final usuario = _client.auth.currentUser;
+    if (usuario == null) return null;
+    final linha = await _client
+        .from('funcionarios')
         .select('id, nome')
+        .eq('user_id', usuario.id)
+        .eq('ativo', true)
+        .eq('atende', true)
+        .maybeSingle();
+    if (linha == null) return null;
+    return (id: linha['id'] as String, nome: linha['nome'] as String);
+  }
+
+  Future<List<({String id, String nome})>> buscarPacientesParaAgendamento(
+    String busca,
+  ) async {
+    final linhas = await _client.rpc(
+      'buscar_pacientes_para_agendamento',
+      params: {'p_busca': busca.trim()},
+    );
+    return linhas
+        .map(
+          (linha) => (id: linha['id'] as String, nome: linha['nome'] as String),
+        )
+        .toList();
+  }
+
+  Future<List<PacienteClinix>> listarTodosPacientes() async {
+    final linhas = await _client.rpc('listar_pacientes_com_proxima_consulta');
+    return linhas
+        .map(
+          (linha) => PacienteClinix(
+            id: linha['paciente_id'] as String,
+            nome: linha['nome'] as String,
+            cpf: (linha['cpf'] ?? '') as String,
+            telefone: (linha['telefone'] ?? '') as String,
+            proximaConsulta: _data(linha['proxima_consulta']),
+            profissionalProximaConsulta:
+                linha['profissional_proxima_consulta'] as String?,
+          ),
+        )
+        .toList();
+  }
+
+  Future<String?> statusSolicitacaoAcessoAtual() async {
+    final usuario = _client.auth.currentUser;
+    if (usuario == null) return null;
+    final linha = await _client
+        .from('solicitacoes_acesso')
+        .select('status')
+        .eq('usuario_id', usuario.id)
+        .maybeSingle();
+    return linha?['status'] as String?;
+  }
+
+  Future<List<SolicitacaoAcessoClinix>> listarSolicitacoesAcesso() async {
+    final linhas = await _client
+        .from('solicitacoes_acesso')
+        .select('usuario_id, nome, email, criada_em')
+        .eq('status', 'pendente')
+        .order('criada_em');
+    return linhas
+        .map(
+          (linha) => SolicitacaoAcessoClinix(
+            usuarioId: linha['usuario_id'] as String,
+            nome: linha['nome'] as String,
+            email: linha['email'] as String,
+            criadaEm: DateTime.parse(linha['criada_em'] as String).toLocal(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> aprovarSolicitacaoAcesso(String usuarioId, String perfil) async {
+    await _client.rpc(
+      'aprovar_solicitacao_acesso',
+      params: {'p_usuario_id': usuarioId, 'p_perfil': perfil},
+    );
+  }
+
+  Future<void> rejeitarSolicitacaoAcesso(String usuarioId) async {
+    await _client.rpc(
+      'rejeitar_solicitacao_acesso',
+      params: {'p_usuario_id': usuarioId},
+    );
+  }
+
+  Future<List<FuncionarioClinix>> listarFuncionarios() async {
+    final linhas = await _client
+        .from('funcionarios')
+        .select('id, nome, email, cargo, atende, ativo')
         .order('nome');
     return linhas
-        .map((l) => (id: l['id'] as String, nome: l['nome'] as String))
+        .map(
+          (linha) => FuncionarioClinix(
+            id: linha['id'] as String,
+            nome: linha['nome'] as String,
+            email: (linha['email'] ?? '') as String,
+            cargo: linha['cargo'] as String,
+            atende: linha['atende'] as bool,
+            ativo: linha['ativo'] as bool,
+          ),
+        )
         .toList();
+  }
+
+  Future<void> cadastrarFuncionario({
+    required String nome,
+    String email = '',
+    String cargo = '',
+    required bool atende,
+  }) async {
+    await _client.rpc(
+      'cadastrar_funcionario',
+      params: {
+        'p_nome': nome.trim(),
+        'p_email': email.trim(),
+        'p_cargo': cargo.trim(),
+        'p_atende': atende,
+      },
+    );
   }
 
   AgendamentoClinix _paraModelo(Map<String, dynamic> linha) {

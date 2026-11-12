@@ -6,14 +6,18 @@ import '../pages/pagina_agendamento.dart';
 import '../pages/pagina_atendimento.dart';
 import '../pages/pagina_cadastro_paciente.dart';
 import '../pages/pagina_fila_espera.dart';
+import '../pages/pagina_gestao_clinica.dart';
+import '../pages/pagina_lista_pacientes.dart';
 import '../pages/pagina_pacientes_agendados.dart';
 
 enum _AbaClinix {
   agenda('Agenda', Icons.calendar_month_outlined),
+  pacientes('Pacientes', Icons.people_alt_outlined),
   cadastro('Cadastrar', Icons.person_add_alt_1_outlined),
   fila('Fila', Icons.people_outline),
   agendamento('Agendar', Icons.add_circle_outline),
-  atendimento('Atender', Icons.medical_services_outlined);
+  atendimento('Atender', Icons.medical_services_outlined),
+  gestao('Aprovações', Icons.person_search_outlined);
 
   const _AbaClinix(this.rotulo, this.icone);
   final String rotulo;
@@ -51,6 +55,9 @@ class _EstadoAreaAtendimento extends State<AreaAtendimento> {
       diaInicial: _diaAgenda,
       aoNovoAgendamento: _abrirAgendamento,
     ),
+    _AbaClinix.pacientes => PaginaListaPacientes(
+      key: ValueKey('pacientes-$_versaoPacientes'),
+    ),
     _AbaClinix.cadastro => PaginaCadastroPaciente(aoSalvar: _voltarDoCadastro),
     _AbaClinix.fila => PaginaFilaEspera(agenda: widget.agenda),
     _AbaClinix.agendamento => PaginaAgendamento(
@@ -62,6 +69,7 @@ class _EstadoAreaAtendimento extends State<AreaAtendimento> {
         _aba = _AbaClinix.agenda;
       }),
     ),
+    _AbaClinix.gestao => const PaginaGestaoClinica(),
     _AbaClinix.atendimento => PaginaAtendimento(agenda: widget.agenda),
   };
 
@@ -69,10 +77,12 @@ class _EstadoAreaAtendimento extends State<AreaAtendimento> {
   Widget build(BuildContext context) {
     final abas = [
       _AbaClinix.agenda,
+      _AbaClinix.pacientes,
       if (widget.agenda.perfil.podeCadastrarPaciente) _AbaClinix.cadastro,
       if (widget.agenda.perfil.podeVerFila) _AbaClinix.fila,
       if (widget.agenda.perfil.podeAgendar) _AbaClinix.agendamento,
       if (widget.agenda.perfil.podeAtender) _AbaClinix.atendimento,
+      if (widget.agenda.perfil.podeGerenciarFuncionarios) _AbaClinix.gestao,
     ];
     // Se a aba atual não estiver disponível para o perfil, mostra a primeira.
     final atual = abas.contains(_aba) ? _aba : abas.first;

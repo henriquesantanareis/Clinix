@@ -23,17 +23,25 @@ class PaginaAgendamento extends StatefulWidget {
 class _EstadoAgendamento extends State<PaginaAgendamento> {
   final _formKey = GlobalKey<FormState>();
   final _observacoes = TextEditingController();
+  final _buscaPaciente = TextEditingController();
   final AgendaRepository _repositorio = AgendaRepository();
-
 
   late DateTime _dataHora = widget.agenda.agora.add(const Duration(hours: 1));
   List<({String id, String nome})> _profissionais = [];
-  List<({String id, String nome})> _pacientes = [];
+  List<({String id, String nome})> _resultadosPacientes = [];
   String? _pacienteId;
+  String? _pacienteNome;
   String? _profissionalId;
+  String? _profissionalNome;
   bool _carregando = true;
+  bool _buscandoPacientes = false;
   bool _salvando = false;
   String? _erro;
+  String? _erroBuscaPaciente;
+  int _versaoBuscaPaciente = 0;
+
+  bool get _profissionalLogado =>
+      widget.agenda.perfil == PerfilClinix.profissional;
 
   @override
   void initState() {
@@ -44,25 +52,90 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
   @override
   void dispose() {
     _observacoes.dispose();
+    _buscaPaciente.dispose();
     super.dispose();
   }
 
-  // Carrega as listas de pacientes e profissionais do banco.
   Future<void> _carregarOpcoes() async {
     try {
-      final pacientes = await _repositorio.listarPacientes();
-      final profissionais = await _repositorio.listarProfissionais();
+      final profissional = _profissionalLogado
+          ? await _repositorio.profissionalAtual()
+          : null;
+      final profissionais = _profissionalLogado
+          ? <({String id, String nome})>[]
+          : await _repositorio.listarProfissionais();
       if (!mounted) return;
       setState(() {
-        _pacientes = pacientes;
         _profissionais = profissionais;
+        if (_profissionalLogado) {
+          _profissionalId = profissional?.id;
+          _profissionalNome = profissional?.nome;
+          if (profissional == null) {
+            _erro = 'Seu perfil não está vinculado a um funcionário ativo que realiza atendimentos. Procure o gerente.';
+          }
+        }
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _erro = 'Não foi possível carregar pacientes e profissionais.');
+      setState(
+        () => _erro = 'Não foi possível carregar pacientes e profissionais.',
+      );
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
+  }
+
+  Future<void> _buscarPacientes(String valor) async {
+    final busca = valor.trim();
+    final versao = ++_versaoBuscaPaciente;
+    setState(() {
+      _pacienteId = null;
+      _pacienteNome = null;
+      _erroBuscaPaciente = null;
+      _resultadosPacientes = [];
+      _buscandoPacientes = busca.length >= 2;
+    });
+    if (busca.length < 2) return;
+
+    try {
+      final resultados = await _repositorio.buscarPacientesParaAgendamento(
+        busca,
+      );
+      if (!mounted || versao != _versaoBuscaPaciente) return;
+      setState(() => _resultadosPacientes = resultados);
+    } on PostgrestException catch (erro) {
+      if (!mounted || versao != _versaoBuscaPaciente) return;
+      setState(
+        () => _erroBuscaPaciente = erro.code == 'PGRST202'
+            ? 'A busca de pacientes ainda não foi instalada no Supabase. '
+                  'Aplique a migration 006_agendamento_profissional_busca_pacientes.sql.'
+            : 'Não foi possível pesquisar pacientes (${erro.code}).',
+      );
+    } catch (_) {
+      if (!mounted || versao != _versaoBuscaPaciente) return;
+      setState(
+        () => _erroBuscaPaciente =
+            'Não foi possível pesquisar pacientes. Tente novamente.',
+      );
+    } finally {
+      if (mounted && versao == _versaoBuscaPaciente) {
+        setState(() => _buscandoPacientes = false);
+      }
+    }
+  }
+
+  void _selecionarPaciente(({String id, String nome}) paciente) {
+    _versaoBuscaPaciente++;
+    setState(() {
+      _pacienteId = paciente.id;
+      _pacienteNome = paciente.nome;
+      _buscaPaciente.text = paciente.nome;
+      _resultadosPacientes = [];
+      _buscandoPacientes = false;
+      _erroBuscaPaciente = null;
+    });
+    FocusScope.of(context).unfocus();
+    _formKey.currentState?.validate();
   }
 
   Future<void> _selecionarData() async {
@@ -119,7 +192,7 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
 
   Future<void> _salvar() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // O horário exibido tem precisão de minutos; não salvamos segundos ocultos.
     final dataHora = DateTime(
       _dataHora.year,
@@ -144,12 +217,17 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
         observacoes: _observacoes.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agendamento realizado.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Agendamento realizado.')));
       setState(() {
         _pacienteId = null;
-        _profissionalId = null;
+        _pacienteNome = null;
+        _buscaPaciente.clear();
+        _resultadosPacientes = [];
+        if (!_profissionalLogado) {
+          _profissionalId = null;
+        }
         _observacoes.clear();
         _dataHora = widget.agenda.agora.add(const Duration(hours: 1));
       });
@@ -163,7 +241,9 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _erro = 'Não foi possível salvar o agendamento. Tente de novo.');
+      setState(
+        () => _erro = 'Não foi possível salvar o agendamento. Tente de novo.',
+      );
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -183,42 +263,92 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
             children: [
               const CabecalhoAtendimento(
                 titulo: 'Novo agendamento',
-                descricao: 'Informe o paciente, o profissional e o horário desejado.',
+                descricao:
+                    'Informe o paciente, o profissional e o horário desejado.',
               ),
               if (_carregando) const LinearProgressIndicator(),
-              DropdownButtonFormField<String>(
+              TextFormField(
                 key: const Key('paciente'),
-                initialValue: _pacienteId,
+                controller: _buscaPaciente,
+                onChanged: _buscarPacientes,
+                textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  labelText: 'Paciente',
-                  helperText: !_carregando && _pacientes.isEmpty
-                      ? 'Nenhum paciente cadastrado.'
+                  labelText: 'Buscar paciente',
+                  hintText: 'Digite pelo menos 2 letras do nome',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _buscandoPacientes
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
                       : null,
                 ),
-                items: [
-                  for (final p in _pacientes)
-                    DropdownMenuItem(value: p.id, child: Text(p.nome)),
-                ],
-                onChanged: (v) => setState(() => _pacienteId = v),
-                validator: (v) => v == null ? 'Escolha o paciente.' : null,
+                validator: (_) => _pacienteId == null
+                    ? 'Selecione um paciente da busca.'
+                    : null,
               ),
+              if (_erroBuscaPaciente != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _erroBuscaPaciente!,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ] else if (_resultadosPacientes.isNotEmpty)
+                Card(
+                  margin: const EdgeInsets.only(top: 8),
+                  child: Column(
+                    children: [
+                      for (final paciente in _resultadosPacientes)
+                        ListTile(
+                          leading: const Icon(Icons.person_outline),
+                          title: Text(paciente.nome),
+                          onTap: () => _selecionarPaciente(paciente),
+                        ),
+                    ],
+                  ),
+                )
+              else if (!_buscandoPacientes &&
+                  _buscaPaciente.text.trim().length >= 2 &&
+                  _pacienteId == null &&
+                  _erroBuscaPaciente == null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('Nenhum paciente encontrado.'),
+                )
+              else if (_pacienteNome != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text('Paciente selecionado: $_pacienteNome'),
+                ),
               const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                key: const Key('profissional'),
-                initialValue: _profissionalId,
-                decoration: InputDecoration(
-                  labelText: 'Profissional',
-                  helperText: !_carregando && _profissionais.isEmpty
-                      ? 'Nenhum profissional disponível para atendimento.'
-                      : null,
+              if (_profissionalLogado)
+                TextFormField(
+                  key: const Key('profissional-logado'),
+                  initialValue: _profissionalNome ?? '',
+                  enabled: false,
+                  decoration: const InputDecoration(labelText: 'Profissional'),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  key: const Key('profissional'),
+                  initialValue: _profissionalId,
+                  decoration: InputDecoration(
+                    labelText: 'Profissional',
+                    helperText: !_carregando && _profissionais.isEmpty
+                        ? 'Nenhum profissional disponível para atendimento.'
+                        : null,
+                  ),
+                  items: [
+                    for (final p in _profissionais)
+                      DropdownMenuItem(value: p.id, child: Text(p.nome)),
+                  ],
+                  onChanged: (v) => setState(() => _profissionalId = v),
+                  validator: (v) =>
+                      v == null ? 'Escolha o profissional.' : null,
                 ),
-                items: [
-                  for (final p in _profissionais)
-                    DropdownMenuItem(value: p.id, child: Text(p.nome)),
-                ],
-                onChanged: (v) => setState(() => _profissionalId = v),
-                validator: (v) => v == null ? 'Escolha o profissional.' : null,
-              ),
               const SizedBox(height: 20),
               Wrap(
                 spacing: 12,
@@ -255,7 +385,9 @@ class _EstadoAgendamento extends State<PaginaAgendamento> {
               ],
               FilledButton.icon(
                 key: const Key('salvar-agendamento'),
-                onPressed: _salvando || _carregando ? null : _salvar,
+                onPressed: _salvando || _carregando || _profissionalId == null
+                    ? null
+                    : _salvar,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
