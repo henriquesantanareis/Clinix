@@ -158,32 +158,31 @@ class AgendaRepository {
   Future<List<({String id, String nome})>> buscarPacientesParaAgendamento(
     String busca,
   ) async {
-    final linhas = await _client.rpc(
+    final linhas = (await _client.rpc(
       'buscar_pacientes_para_agendamento',
       params: {'p_busca': busca.trim()},
-    );
-    return linhas
-        .map(
-          (linha) => (id: linha['id'] as String, nome: linha['nome'] as String),
-        )
-        .toList();
+    )) as List;
+    return linhas.map((linha) {
+      final mapa = linha as Map<String, dynamic>;
+      return (id: mapa['id'] as String, nome: mapa['nome'] as String);
+    }).toList();
   }
 
   Future<List<PacienteClinix>> listarTodosPacientes() async {
-    final linhas = await _client.rpc('listar_pacientes_com_proxima_consulta');
-    return linhas
-        .map(
-          (linha) => PacienteClinix(
-            id: linha['paciente_id'] as String,
-            nome: linha['nome'] as String,
-            cpf: (linha['cpf'] ?? '') as String,
-            telefone: (linha['telefone'] ?? '') as String,
-            proximaConsulta: _data(linha['proxima_consulta']),
-            profissionalProximaConsulta:
-                linha['profissional_proxima_consulta'] as String?,
-          ),
-        )
-        .toList();
+    final linhas =
+        (await _client.rpc('listar_pacientes_com_proxima_consulta')) as List;
+    return linhas.map((linha) {
+      final mapa = linha as Map<String, dynamic>;
+      return PacienteClinix(
+        id: mapa['paciente_id'] as String,
+        nome: mapa['nome'] as String,
+        cpf: (mapa['cpf'] ?? '') as String,
+        telefone: (mapa['telefone'] ?? '') as String,
+        proximaConsulta: _data(mapa['proxima_consulta']),
+        profissionalProximaConsulta:
+            mapa['profissional_proxima_consulta'] as String?,
+      );
+    }).toList();
   }
 
   Future<String?> statusSolicitacaoAcessoAtual() async {
