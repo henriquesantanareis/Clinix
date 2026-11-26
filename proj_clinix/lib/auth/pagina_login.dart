@@ -47,9 +47,7 @@ class _EstadoPaginaLogin extends State<PaginaLogin> {
     } catch (error) {
       if (!mounted) return;
       _showMessage(
-        kDebugMode
-            ? 'Falha inesperada ao entrar: $error'
-            : 'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+        kDebugMode ? 'Falha inesperada ao entrar: $error' : 'Não foi possível entrar. Verifique sua conexão e tente novamente.',
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -59,47 +57,107 @@ class _EstadoPaginaLogin extends State<PaginaLogin> {
   void _openRegistration() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PaginaCadastro(
-          supabaseConfigured: widget.supabaseConfigured,
-        ),
+        builder: (_) =>
+            PaginaCadastro(supabaseConfigured: widget.supabaseConfigured),
       ),
     );
   }
 
   Future<void> _sendPasswordReset() async {
-    final email = _emailController.text.trim();
-    if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
-      _showMessage('Informe um e-mail válido para recuperar a senha.');
+    if (!_ensureSupabaseConfigured()) return;
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+    final formKey = GlobalKey<FormState>();
+
+    final enviar = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Solicitar recuperação'),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        constraints: const BoxConstraints(maxWidth: 480),
+        content: Form(
+          key: formKey,
+          child: SizedBox(
+            width: 440,
+            child: TextFormField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              decoration: const InputDecoration(
+                labelText: 'E-mail da conta',
+                helperText: 'A solicitação será enviada ao gerente.',
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 22,
+                ),
+              ),
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+                  return 'Informe um e-mail válido.';
+                }
+                return null;
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(dialogContext).pop(true);
+              }
+            },
+            child: const Text('Solicitar'),
+          ),
+        ],
+      ),
+    );
+
+    if (enviar != true || !mounted) {
+      emailController.dispose();
       return;
     }
-    if (!_ensureSupabaseConfigured()) return;
 
     setState(() => _isLoading = true);
     try {
-      await SupabaseApi.resetPasswordForEmail(email);
+      await Supabase.instance.client.rpc(
+        'solicitar_recuperacao_senha',
+        params: {'p_email': emailController.text.trim()},
+      );
       if (!mounted) return;
-      _showMessage('Se a conta existir, você receberá um link de recuperação.');
-    } on AuthException catch (error) {
+      _showMessage(
+        'Solicitação registrada. Aguarde o gerente concluir a recuperação.',
+      );
+    } on PostgrestException catch (error) {
       if (!mounted) return;
       _showMessage(error.message);
     } catch (_) {
       if (!mounted) return;
-      _showMessage('Não foi possível enviar o link. Tente novamente.');
+      _showMessage('Não foi possível registrar a solicitação.');
     } finally {
+      emailController.dispose();
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   bool _ensureSupabaseConfigured() {
     if (widget.supabaseConfigured) return true;
-    _showMessage('Configure a URL e a chave pública do Supabase para continuar.');
+    _showMessage(
+      'Configure a URL e a chave pública do Supabase para continuar.',
+    );
     return false;
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

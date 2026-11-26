@@ -166,8 +166,8 @@ class AgendaRepository {
       final mapa = linha as Map<String, dynamic>;
       return (id: mapa['id'] as String, nome: mapa['nome'] as String);
     }).toList();
-  }
 
+  }
   Future<List<PacienteClinix>> listarTodosPacientes() async {
     final linhas =
         (await _client.rpc('listar_pacientes_com_proxima_consulta')) as List;
@@ -231,12 +231,13 @@ class AgendaRepository {
   Future<List<FuncionarioClinix>> listarFuncionarios() async {
     final linhas = await _client
         .from('funcionarios')
-        .select('id, nome, email, cargo, atende, ativo')
+        .select('id, user_id, nome, email, cargo, atende, ativo')
         .order('nome');
     return linhas
         .map(
           (linha) => FuncionarioClinix(
             id: linha['id'] as String,
+            usuarioId: linha['user_id'] as String?,
             nome: linha['nome'] as String,
             email: (linha['email'] ?? '') as String,
             cargo: linha['cargo'] as String,
@@ -261,6 +262,59 @@ class AgendaRepository {
         'p_cargo': cargo.trim(),
         'p_atende': atende,
       },
+    );
+  }
+
+  Future<void> alterarSenhaUsuario({
+    required String usuarioId,
+    required String senha,
+  }) async {
+    await _client.rpc(
+      'alterar_senha_usuario',
+      params: {'p_usuario_id': usuarioId, 'p_senha': senha},
+    );
+  }
+
+  Future<void> solicitarRecuperacaoSenha(String email) async {
+    await _client.rpc(
+      'solicitar_recuperacao_senha',
+      params: {'p_email': email.trim()},
+    );
+  }
+
+  Future<List<SolicitacaoRecuperacaoSenhaClinix>>
+  listarSolicitacoesRecuperacaoSenha() async {
+    final linhas = await _client
+        .from('solicitacoes_recuperacao_senha')
+        .select('id, usuario_id, email, criada_em')
+        .eq('status', 'pendente')
+        .order('criada_em');
+    return linhas
+        .map(
+          (linha) => SolicitacaoRecuperacaoSenhaClinix(
+            id: linha['id'] as String,
+            usuarioId: linha['usuario_id'] as String?,
+            email: linha['email'] as String,
+            criadaEm: DateTime.parse(linha['criada_em'] as String).toLocal(),
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> concluirRecuperacaoSenha({
+    required String solicitacaoId,
+    required String senha,
+  }) async {
+    await _client.rpc(
+      'concluir_recuperacao_senha',
+      params: {'p_solicitacao_id': solicitacaoId, 'p_senha': senha},
+    );
+  }
+
+  Future<void> cancelarRecuperacaoSenha(String solicitacaoId) async {
+    await _client.rpc(
+      'cancelar_recuperacao_senha',
+      params: {'p_solicitacao_id': solicitacaoId},
     );
   }
 
