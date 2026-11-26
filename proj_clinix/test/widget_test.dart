@@ -14,11 +14,11 @@ import 'package:proj_clinix/models/modelos_atendimento.dart';
 import 'package:proj_clinix/pages/pagina_inicial.dart';
 
 void main() {
-  testWidgets('registration page validates required fields', (WidgetTester tester) async {
+  testWidgets('registration page validates required fields', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PaginaCadastro(supabaseConfigured: false),
-      ),
+      const MaterialApp(home: PaginaCadastro(supabaseConfigured: false)),
     );
 
     expect(find.text('Criar sua conta'), findsOneWidget);
@@ -35,24 +35,36 @@ void main() {
     expect(find.text('Confirme sua senha.'), findsOneWidget);
   });
 
-  testWidgets('dashboard shows the authenticated account', (WidgetTester tester) async {
+  testWidgets('account settings are on a dedicated page', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: PaginaInicial(email: 'ana@clinix.com', perfil: PerfilClinix.administrativo),
+        home: PaginaInicial(
+          email: 'ana@clinix.com',
+          perfil: PerfilClinix.administrativo,
+        ),
       ),
     );
 
     expect(find.text('Olá, ana'), findsOneWidget);
-    expect(find.text('ana@clinix.com'), findsOneWidget);
+    expect(find.text('ana@clinix.com'), findsNothing);
     expect(find.text('Atividade recente'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Minha conta'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ana@clinix.com'), findsOneWidget);
+    expect(find.text('Alterar minha senha'), findsOneWidget);
+    expect(find.text('Sair'), findsOneWidget);
   });
 
-  testWidgets('login page validates required fields', (WidgetTester tester) async {
+  testWidgets('login page validates required fields', (
+    WidgetTester tester,
+  ) async {
     // Monta só a tela de login, sem o _AuthGate, para não depender do Supabase
     await tester.pumpWidget(
-      const MaterialApp(
-        home: PaginaLogin(supabaseConfigured: false),
-      ),
+      const MaterialApp(home: PaginaLogin(supabaseConfigured: false)),
     );
 
     expect(find.text('Acesse sua conta'), findsOneWidget);

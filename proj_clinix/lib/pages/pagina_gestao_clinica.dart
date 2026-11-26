@@ -5,7 +5,7 @@ import '../data/agenda_repository.dart';
 import '../models/modelos_atendimento.dart';
 import '../widgets/componentes_atendimento.dart';
 
-enum _SecaoGestao { acessos, funcionarios }
+enum _SecaoGestao { acessos, funcionarios, recuperacao }
 
 class PaginaGestaoClinica extends StatefulWidget {
   const PaginaGestaoClinica({super.key});
@@ -41,6 +41,11 @@ class _EstadoGestaoClinica extends State<PaginaGestaoClinica> {
               icon: Icon(Icons.badge_outlined),
               label: Text('Funcionários'),
             ),
+            ButtonSegment(
+              value: _SecaoGestao.recuperacao,
+              icon: Icon(Icons.lock_reset_outlined),
+              label: Text('Recuperações'),
+            ),
           ],
           selected: {_secao},
           onSelectionChanged: (value) => setState(() => _secao = value.first),
@@ -51,9 +56,250 @@ class _EstadoGestaoClinica extends State<PaginaGestaoClinica> {
         child: switch (_secao) {
           _SecaoGestao.acessos => const _SolicitacoesAcesso(),
           _SecaoGestao.funcionarios => const _CadastroFuncionarios(),
+          _SecaoGestao.recuperacao => const _RecuperacoesSenha(),
         },
       ),
     ],
+  );
+}
+
+class _RecuperacoesSenha extends StatefulWidget {
+  const _RecuperacoesSenha();
+
+  @override
+  State<_RecuperacoesSenha> createState() => _EstadoRecuperacoesSenha();
+}
+
+class _EstadoRecuperacoesSenha extends State<_RecuperacoesSenha> {
+  final AgendaRepository _repositorio = AgendaRepository();
+  List<SolicitacaoRecuperacaoSenhaClinix> _solicitacoes = [];
+  bool _carregando = true;
+  String? _erro;
+  String? _processandoId;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    setState(() {
+      _carregando = true;
+      _erro = null;
+    });
+    try {
+      final solicitacoes =
+          await _repositorio.listarSolicitacoesRecuperacaoSenha();
+      if (!mounted) return;
+      setState(() => _solicitacoes = solicitacoes);
+    } on PostgrestException catch (erro) {
+      if (!mounted) return;
+      setState(
+        () => _erro =
+            'Não foi possível carregar as recuperações (${erro.code}).',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _erro = 'Não foi possível carregar as recuperações.',
+      );
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _concluir(
+    SolicitacaoRecuperacaoSenhaClinix solicitacao,
+  ) async {
+    if (solicitacao.usuarioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta solicitação não está ligada a uma conta.'),
+        ),
+      );
+      return;
+    }
+
+    final novaSenha = TextEditingController();
+    final confirmarSenha = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var obscureText = true;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, atualizar) => AlertDialog(
+          title: const Text('Concluir recuperação'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Nova senha para ${solicitacao.email}:'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: novaSenha,
+                  obscureText: obscureText,
+                  decoration: const InputDecoration(labelText: 'Nova senha'),
+                  validator: (value) =>
+                      (value?.length ?? 0) >= 8
+                          ? null
+                          : 'Use pelo menos 8 caracteres.',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmarSenha,
+                  obscureText: obscureText,
+                  decoration:
+                      const InputDecoration(labelText: 'Confirmar senha'),
+                  validator: (value) => value == novaSenha.text
+                      ? null
+                      : 'As senhas não coincidem.',
+                ),
+                TextButton.icon(
+                  onPressed: () =>
+                      atualizar(() => obscureText = !obscureText),
+                  icon: Icon(
+                    obscureText
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  label: Text(obscureText ? 'Mostrar' : 'Ocultar'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogContext).pop(true);
+                }
+              },
+              child: const Text('Concluir'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmar != true || !mounted) {
+      novaSenha.dispose();
+      confirmarSenha.dispose();
+      return;
+    }
+
+    setState(() => _processandoId = solicitacao.id);
+    try {
+      await _repositorio.concluirRecuperacaoSenha(
+        solicitacaoId: solicitacao.id,
+        senha: novaSenha.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Senha recuperada com sucesso.')),
+      );
+      await _carregar();
+    } on PostgrestException catch (erro) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(erro.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      mostrarErroAtendimento(
+        context,
+        'Não foi possível concluir a recuperação.',
+      );
+    } finally {
+      novaSenha.dispose();
+      confirmarSenha.dispose();
+      if (mounted) setState(() => _processandoId = null);
+    }
+  }
+
+  Future<void> _cancelar(
+    SolicitacaoRecuperacaoSenhaClinix solicitacao,
+  ) async {
+    setState(() => _processandoId = solicitacao.id);
+    try {
+      await _repositorio.cancelarRecuperacaoSenha(solicitacao.id);
+      if (!mounted) return;
+      await _carregar();
+    } catch (erro) {
+      if (!mounted) return;
+      mostrarErroAtendimento(context, erro);
+    } finally {
+      if (mounted) setState(() => _processandoId = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => RefreshIndicator(
+    onRefresh: _carregar,
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
+      children: [
+        if (_carregando) const LinearProgressIndicator(),
+        if (_erro != null)
+          EstadoVazioAtendimento(
+            titulo: 'Erro ao carregar recuperações',
+            descricao: _erro!,
+            icone: Icons.error_outline,
+          )
+        else if (!_carregando && _solicitacoes.isEmpty)
+          const EstadoVazioAtendimento(
+            titulo: 'Nenhuma recuperação pendente',
+            descricao:
+                'Solicitações feitas por pessoas que esqueceram a senha aparecerão aqui.',
+            icone: Icons.lock_reset_outlined,
+          )
+        else
+          for (final solicitacao in _solicitacoes)
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 0,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFDCE3DD)),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(18),
+                title: Text(solicitacao.email),
+                subtitle: Text(
+                  'Solicitada em ${formatarData(solicitacao.criadaEm)} '
+                  'às ${formatarHora(solicitacao.criadaEm)}',
+                ),
+                trailing: _processandoId == solicitacao.id
+                    ? const SizedBox.square(
+                        dimension: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _cancelar(solicitacao),
+                            child: const Text('Cancelar'),
+                          ),
+                          FilledButton(
+                            onPressed: () => _concluir(solicitacao),
+                            child: const Text('Definir senha'),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+      ],
+    ),
   );
 }
 
@@ -413,6 +659,123 @@ class _EstadoCadastroFuncionarios extends State<_CadastroFuncionarios> {
     }
   }
 
+  Future<void> _alterarSenha(FuncionarioClinix funcionario) async {
+    if (funcionario.usuarioId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta pessoa ainda não possui uma conta vinculada.'),
+        ),
+      );
+      return;
+    }
+
+    final novaSenha = TextEditingController();
+    final confirmarSenha = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    var obscureText = true;
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, atualizar) => AlertDialog(
+          title: const Text('Alterar senha'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Defina uma nova senha para ${funcionario.nome}.'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: novaSenha,
+                  obscureText: obscureText,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: const InputDecoration(
+                    labelText: 'Nova senha',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (value) =>
+                      (value?.length ?? 0) >= 8
+                          ? null
+                          : 'Use pelo menos 8 caracteres.',
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmarSenha,
+                  obscureText: obscureText,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar senha',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  validator: (value) => value == novaSenha.text
+                      ? null
+                      : 'As senhas não coincidem.',
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () =>
+                      atualizar(() => obscureText = !obscureText),
+                  icon: Icon(
+                    obscureText
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  label: Text(obscureText ? 'Mostrar' : 'Ocultar'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(dialogContext).pop(true);
+                }
+              },
+              child: const Text('Alterar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmar != true || !mounted) {
+      novaSenha.dispose();
+      confirmarSenha.dispose();
+      return;
+    }
+
+    try {
+      await _repositorio.alterarSenhaUsuario(
+        usuarioId: funcionario.usuarioId!,
+        senha: novaSenha.text,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Senha de ${funcionario.nome} alterada.')),
+      );
+    } on PostgrestException catch (erro) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(erro.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      mostrarErroAtendimento(
+        context,
+        'Não foi possível alterar a senha.',
+      );
+    } finally {
+      novaSenha.dispose();
+      confirmarSenha.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: _carregar,
@@ -522,10 +885,32 @@ class _EstadoCadastroFuncionarios extends State<_CadastroFuncionarios> {
                   funcionario.atende ? 'Atende pacientes' : 'Administrativo',
                 ].join(' · '),
               ),
-              trailing: Icon(
-                funcionario.ativo ? Icons.check_circle_outline : Icons.block,
-                color: funcionario.ativo ? Colors.teal : Colors.grey,
-                semanticLabel: funcionario.ativo ? 'Ativo' : 'Inativo',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    funcionario.ativo
+                        ? Icons.check_circle_outline
+                        : Icons.block,
+                    color: funcionario.ativo ? Colors.teal : Colors.grey,
+                    semanticLabel: funcionario.ativo ? 'Ativo' : 'Inativo',
+                  ),
+                  if (funcionario.usuarioId != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'Opções',
+                      onSelected: (valor) {
+                        if (valor == 'senha') {
+                          _alterarSenha(funcionario);
+                        }
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'senha',
+                          child: Text('Alterar senha'),
+                        ),
+                      ],
+                    ),
+                ],
               ),
             ),
           ),

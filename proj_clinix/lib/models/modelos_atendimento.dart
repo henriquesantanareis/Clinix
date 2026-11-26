@@ -75,6 +75,7 @@ class SolicitacaoAcessoClinix {
 class FuncionarioClinix {
   const FuncionarioClinix({
     required this.id,
+    this.usuarioId,
     required this.nome,
     required this.email,
     required this.cargo,
@@ -83,11 +84,26 @@ class FuncionarioClinix {
   });
 
   final String id;
+  final String? usuarioId;
   final String nome;
   final String email;
   final String cargo;
   final bool atende;
   final bool ativo;
+}
+
+class SolicitacaoRecuperacaoSenhaClinix {
+  const SolicitacaoRecuperacaoSenhaClinix({
+    required this.id,
+    required this.usuarioId,
+    required this.email,
+    required this.criadaEm,
+  });
+
+  final String id;
+  final String? usuarioId;
+  final String email;
+  final DateTime criadaEm;
 }
 
 class AgendamentoClinix {

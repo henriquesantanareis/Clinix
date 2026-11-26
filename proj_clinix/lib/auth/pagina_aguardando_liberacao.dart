@@ -18,6 +18,25 @@ class _EstadoAguardandoLiberacao extends State<PaginaAguardandoLiberacao> {
   String? _erro;
   bool _checando = true;
 
+  Future<void> _signOut() async {
+    try {
+      await SupabaseApi.signOut();
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível sair. Tente novamente.'),
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -111,10 +130,7 @@ class _EstadoAguardandoLiberacao extends State<PaginaAguardandoLiberacao> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => SupabaseApi.signOut(),
-                  child: const Text('Sair'),
-                ),
+                OutlinedButton(onPressed: _signOut, child: const Text('Sair')),
               ],
             ),
           ),

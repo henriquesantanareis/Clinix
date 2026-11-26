@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../apis/supabase_api.dart';
 import '../models/agenda_clinix.dart';
+import '../models/modelos_atendimento.dart';
+import '../pages/pagina_conta.dart';
 import '../widgets/area_atendimento.dart';
 import '../widgets/componentes_clinix.dart';
-import '../models/modelos_atendimento.dart';
 
 class PaginaInicial extends StatefulWidget {
-  const PaginaInicial({
-    super.key,
-    required this.email,
-    required this.perfil,
-  });
+  const PaginaInicial({super.key, required this.email, required this.perfil});
 
   final String email;
   final PerfilClinix perfil;
@@ -22,7 +17,6 @@ class PaginaInicial extends StatefulWidget {
 }
 
 class _EstadoPaginaInicial extends State<PaginaInicial> {
-  bool _isSigningOut = false;
   bool _mostrarAtendimento = false;
   final _navegadorAtendimento = GlobalKey<NavigatorState>();
   late AgendaClinix _agenda;
@@ -54,20 +48,6 @@ class _EstadoPaginaInicial extends State<PaginaInicial> {
   }
 
   void _fecharAtendimento() => setState(() => _mostrarAtendimento = false);
-
-  Future<void> _signOut() async {
-    setState(() => _isSigningOut = true);
-    try {
-      await SupabaseApi.signOut();
-    } on AuthException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _isSigningOut = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,14 +85,13 @@ class _EstadoPaginaInicial extends State<PaginaInicial> {
         backgroundColor: const Color(0xFFF4F6F1),
         actions: [
           IconButton(
-            onPressed: _isSigningOut ? null : _signOut,
-            tooltip: 'Sair da conta',
-            icon: _isSigningOut
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.logout),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => PaginaConta(email: widget.email),
+              ),
+            ),
+            tooltip: 'Minha conta',
+            icon: const Icon(Icons.account_circle_outlined),
           ),
           const SizedBox(width: 12),
         ],
@@ -193,61 +172,6 @@ class _EstadoPaginaInicial extends State<PaginaInicial> {
                         label: const Text('Agenda e atendimento'),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 18),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      const Text(
-                        'Conta conectada',
-                        style: TextStyle(
-                          color: Color(0xFF183D37),
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFDCE3DD)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.alternate_email,
-                              color: Color(0xFF167A68),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'E-mail',
-                                    style: TextStyle(
-                                      color: Color(0xFF687771),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    widget.email,
-                                    style: const TextStyle(
-                                      color: Color(0xFF183D37),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(
-                              Icons.check_circle,
-                              color: Color(0xFF167A68),
-                              size: 20,
-                            ),
-                          ],
                         ),
                       ),
                       const SizedBox(height: 32),
