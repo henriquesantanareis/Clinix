@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../apis/supabase_api.dart';
-import '../auth/pagina_login.dart';
 
 class PaginaConta extends StatefulWidget {
   const PaginaConta({super.key, required this.email});
@@ -22,12 +21,7 @@ class _EstadoPaginaConta extends State<PaginaConta> {
     try {
       await SupabaseApi.signOut();
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => const PaginaLogin(supabaseConfigured: true),
-        ),
-        (_) => false,
-      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context)

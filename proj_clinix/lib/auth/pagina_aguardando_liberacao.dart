@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../apis/supabase_api.dart';
 import '../data/agenda_repository.dart';
-import 'pagina_login.dart';
 
 class PaginaAguardandoLiberacao extends StatefulWidget {
   const PaginaAguardandoLiberacao({super.key});
@@ -23,12 +22,7 @@ class _EstadoAguardandoLiberacao extends State<PaginaAguardandoLiberacao> {
     try {
       await SupabaseApi.signOut();
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(
-          builder: (_) => const PaginaLogin(supabaseConfigured: true),
-        ),
-        (_) => false,
-      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on AuthException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
